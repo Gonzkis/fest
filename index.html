@@ -646,22 +646,36 @@
     plain() { tone(493.88, 0, 0.09, "triangle", 0.1); },
     secret() { [783.99, 739.99, 622.25, 440, 415.3, 659.26, 830.61, 1046.5].forEach((f, i) => tone(f, i * 0.11, 0.13, "square", 0.09)); },
     navi() { tone(1244.51, 0, 0.06, "sine", 0.08); tone(1661.22, 0.07, 0.1, "sine", 0.08); },
+    fanfare() {
+      tone(392, 0, 0.17, "square", 0.09);
+      tone(440, 0.18, 0.17, "square", 0.09);
+      tone(493.88, 0.36, 0.17, "square", 0.09);
+      [523.25, 659.26, 783.99].forEach(f => tone(f, 0.55, 1.0, "square", 0.07));
+    },
   };
 
   /* ---------- fairy's fountain ambient ---------- */
   let musicOn = false, musicTimer = null;
-  const FOUNTAIN = [
-    [261.63, 329.63, 392.00, 493.88, 523.25, 493.88, 392.00, 329.63],
-    [233.08, 293.66, 349.23, 440.00, 466.16, 440.00, 349.23, 293.66],
-    [207.65, 261.63, 311.13, 392.00, 415.30, 392.00, 311.13, 261.63],
-    [196.00, 246.94, 293.66, 349.23, 392.00, 349.23, 293.66, 246.94],
+  // figura real de la fuente: pares descendentes (E-C, D-B, C-A, B-G) + frase alta
+  const FF_MEL = [
+    [659.26, 523.25, 587.33, 493.88, 523.25, 440.00, 493.88, 392.00],
+    [659.26, 523.25, 587.33, 493.88, 523.25, 440.00, 493.88, 392.00],
+    [783.99, 659.26, 698.46, 587.33, 659.26, 523.25, 587.33, 493.88],
+    [659.26, 523.25, 587.33, 493.88, 523.25, 440.00, 493.88, 392.00],
+  ];
+  const FF_BASS = [
+    [130.81, 196.00, 329.63],
+    [130.81, 196.00, 329.63],
+    [174.61, 220.00, 349.23],
+    [130.81, 196.00, 329.63],
   ];
   function playFountain() {
     if (!musicOn) return;
+    const step = 0.26;
     let t = 0;
-    const step = 0.235;
-    FOUNTAIN.forEach(chord => {
-      chord.forEach(f => { tone(f, t, 0.6, "sine", 0.035); t += step; });
+    FF_MEL.forEach((bar, bi) => {
+      FF_BASS[bi].forEach((f, i) => tone(f, t + i * 0.09, 1.9, "sine", 0.026));
+      bar.forEach(f => { tone(f, t, 0.72, "sine", 0.034); t += step; });
     });
     musicTimer = setTimeout(playFountain, t * 1000);
   }
@@ -853,11 +867,11 @@
   const splash = document.getElementById("splash");
   const cart = document.getElementById("cart");
   function openInv() {
-    try { sfx.open(); } catch (e) {}
+    try { sfx.fanfare(); } catch (e) {}
     splash.classList.add("hidden");
     cart.setAttribute("aria-hidden", "false");
     musicBtn.classList.add("visible");
-    try { setMusic(true); } catch (e) {}
+    setTimeout(() => { try { setMusic(true); } catch (e) {} }, 1700);
     showDawn();
     armNavi();
   }
