@@ -507,7 +507,7 @@
     },
     {
       icon: "🎶", key: "ocarina", name: "Ocarina", ocarina: true,
-      text: "Instrumento de Hyrule.\nTócala con los botones y sube el volumen. Si te sabes alguna de Ocarina of Time, tócala — y desbloquea el trofeo del Riddler."
+      text: "Instrumento de Hyrule.\nTócala con los botones — sube el volumen y quita el modo silencio 🔕. Si te sabes alguna de Ocarina of Time, tócala y desbloquea el trofeo del Riddler."
     },
     {
       icon: "🎁", key: "gear", name: "Mystery Box", box: true,
@@ -575,6 +575,7 @@
   });
 
   function select(item, el) {
+    try { sfx.select(); } catch (e) {}
     document.querySelectorAll(".slot").forEach(s => s.classList.remove("selected"));
     el.classList.add("selected");
     itemName.textContent = item.name;
@@ -601,10 +602,38 @@
 
   /* ---------- audio ---------- */
   let ctx = null;
+  function ensureCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+  function tone(freq, t0, dur, type, vol) {
+    const c = ensureCtx();
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type || "square";
+    o.frequency.value = freq;
+    const t = c.currentTime + (t0 || 0);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol || 0.1, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.001, t + (dur || 0.08));
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + (dur || 0.08) + 0.03);
+  }
+  const sfx = {
+    select() { tone(880, 0, 0.05, "square", 0.07); },
+    open() { tone(523.25, 0, 0.09, "triangle", 0.12); tone(783.99, 0.08, 0.13, "triangle", 0.12); },
+    tick() { tone(220, 0, 0.03, "square", 0.045); },
+    win() { [587.33, 880, 1174.66, 1479.98].forEach((f, i) => tone(f, i * 0.09, 0.13, "square", 0.1)); },
+    sad() { tone(392, 0, 0.12, "triangle", 0.1); tone(311.13, 0.14, 0.22, "triangle", 0.1); },
+    plain() { tone(493.88, 0, 0.09, "triangle", 0.1); },
+    secret() { [783.99, 739.99, 622.25, 440, 415.3, 659.26, 830.61, 1046.5].forEach((f, i) => tone(f, i * 0.11, 0.13, "square", 0.09)); },
+    navi() { tone(1244.51, 0, 0.06, "sine", 0.08); tone(1661.22, 0.07, 0.1, "sine", 0.08); },
+  };
+
   const FREQ = { A: 392.0, D: 440.0, R: 493.88, L: 523.25, U: 587.33 }; // G4 A4 B4 C5 D5 (feliz cumpleaños)
   const OOT_FREQ = { A: 293.66, D: 349.23, R: 440.0, L: 493.88, U: 587.33 }; // D4 F4 A4 B4 D5 (afinación real OoT)
   function playNote(n, table) {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ensureCtx();
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -646,6 +675,7 @@
   });
 
   function unlockSecret(songName) {
+    sfx.secret();
     showToast("✨ HAS TOCADO: " + songName.toUpperCase() + " ✨");
     rupeeRain();
     if (secretUnlocked) return;
@@ -705,13 +735,16 @@
     const pick = rollResult();
     if (pick.n.startsWith("RAY GUN")) {
       itemText.textContent = "Te salió: " + pick.n + "\n📸 Captura y mándasela a Gonzkis. Ganaste.";
+      sfx.win();
       showToast("⚡ RAY GUN ⚡");
       rupeeRain();
     } else if (pick.n.startsWith("Teddy")) {
       itemText.textContent = "Te salió: " + pick.n + "\nLa caja se movió de lugar. Suerte para la próxima.";
+      sfx.sad();
       showToast("🧸 LA CAJA SE MOVIÓ");
     } else {
       itemText.textContent = "Te salió: " + pick.n + "\nPuedes volver a girar.";
+      sfx.plain();
     }
   }
   boxBtn.addEventListener("click", () => {
@@ -721,6 +754,7 @@
     let t = 0;
     rollTimer = setInterval(() => {
       itemText.textContent = "🎰 " + WEAPONS[Math.floor(Math.random() * WEAPONS.length)].n;
+      sfx.tick();
       t += 80;
       if (t >= 1200) { clearInterval(rollTimer); finishRoll(); }
     }, 80);
@@ -731,7 +765,9 @@
   function armNavi() {
     if (naviArmed) return;
     naviArmed = true;
-    setTimeout(() => { if (!rsvpTouched) navi.classList.add("visible"); }, 300000);
+    setTimeout(() => {
+      if (!rsvpTouched) { navi.classList.add("visible"); try { sfx.navi(); } catch (e) {} }
+    }, 300000);
   }
   navi.addEventListener("click", () => {
     navi.classList.remove("visible");
@@ -773,6 +809,7 @@
   const splash = document.getElementById("splash");
   const cart = document.getElementById("cart");
   function openInv() {
+    try { sfx.open(); } catch (e) {}
     splash.classList.add("hidden");
     cart.setAttribute("aria-hidden", "false");
     showDawn();
